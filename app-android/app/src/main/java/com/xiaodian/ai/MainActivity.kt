@@ -16,6 +16,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -44,7 +46,14 @@ class MainActivity : ComponentActivity() {
                         prefs.getString("server_base_url", "https://kf.golook.eu.org") ?: ""
                     )
                 }
-                Column(Modifier.padding(16.dp)) {
+                // Vertical scroll is REQUIRED, not cosmetic: without
+                // it the menu page clips at the first dish (see the
+                // 2026-11-03 screenshot: only 番茄炒蛋 visible, the
+                // price-edit row cut off at the bottom, and a new
+                // manually added dish lands below the fold where
+                // the user can never see it, so it looks like the
+                // add failed). Every screen in this app must scroll.
+                Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                     Row {
                         Button(onClick = {
                             currentMode = AppMode.KITCHEN
