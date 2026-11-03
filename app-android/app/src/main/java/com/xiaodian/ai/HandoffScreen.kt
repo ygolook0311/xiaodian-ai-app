@@ -100,6 +100,18 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
     var replyText by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var imageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    // Close media preview / stop voice: previously there was no way
+    // to close an opened image or stop a playing voice (2026-11-03
+    // user report: "App连关闭都没有").
+    fun closeMedia() {
+        try { player?.stop() } catch (_: Exception) {}
+        try { player?.release() } catch (_: Exception) {}
+        player = null
+        imageBitmap = null
+        status = ""
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
@@ -122,10 +134,11 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
                                     }
                                     val tmp = File(context.cacheDir, "handoff_${item.msgid}.amr")
                                     tmp.writeBytes(bytes)
-                                    val player = MediaPlayer()
-                                    player.setDataSource(tmp.absolutePath)
-                                    player.prepare()
-                                    player.start()
+                                    val p = MediaPlayer()
+                                    p.setDataSource(tmp.absolutePath)
+                                    p.prepare()
+                                    p.start()
+                                    player = p
                                     status = "正在播放语音"
                                 }
                                 else -> {
@@ -144,6 +157,9 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
             }
             if (imageBitmap != null) {
                 Image(bitmap = imageBitmap!!.asImageBitmap(), contentDescription = "顾客图片")
+            }
+            if (imageBitmap != null || player != null) {
+                OutlinedButton(onClick = { closeMedia() }) { Text("关闭媒体") }
             }
             TextField(
                 value = replyText,
