@@ -54,6 +54,11 @@ class MainActivity : ComponentActivity() {
                             currentMode = AppMode.BOSS
                             mode = AppMode.BOSS
                         }) { Text("老板模式") }
+                        // App close (2026-11-03 user report: "App连关闭都没有").
+                        // Android apps normally close via system Back/Home,
+                        // but this app had no in-app exit at all, so add one:
+                        // finish() closes this activity, i.e. exits the app.
+                        OutlinedButton(onClick = { finish() }) { Text("退出 App") }
                     }
                     TextField(
                         value = serverUrl,
@@ -66,8 +71,7 @@ class MainActivity : ComponentActivity() {
                     when (currentMode) {
                         AppMode.BOSS -> HandoffScreen(baseUrl = serverUrl)
                         AppMode.KITCHEN -> Column {
-                            Text("后厨订单队列")
-                            Text("订单队列待接后端订单接口，当前版本只实现待人工界面；不要凭空展示假订单。")
+                            OrderScreen(baseUrl = serverUrl)
                             Text("离线队列待处理数：${offlineQueue.size()}")
                         }
                     }
