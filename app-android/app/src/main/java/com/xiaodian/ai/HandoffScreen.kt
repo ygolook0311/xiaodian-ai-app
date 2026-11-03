@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.OutlinedButton
@@ -85,8 +83,12 @@ fun HandoffScreen(baseUrl: String) {
         if (items.isEmpty()) {
             Text("暂无待处理")
         } else {
-            LazyColumn {
-                items(items, key = { it.msgid }) { item ->
+            // Same fix as OrderScreen: plain Column, not LazyColumn,
+            // because MainActivity already vertical-scrolls the page.
+            // A LazyColumn here crashes the same way once a handoff
+            // item appears and the list recomposes on refresh.
+            Column {
+                for (item in items) {
                     HandoffCard(item, baseUrl, onDone = { refresh() })
                     Spacer(Modifier.height(8.dp))
                 }
