@@ -69,7 +69,15 @@ class MainActivity : ComponentActivity() {
                         label = { Text("后端地址（试点 NAS）") },
                     )
                     when (currentMode) {
-                        AppMode.BOSS -> HandoffScreen(baseUrl = serverUrl)
+                        AppMode.BOSS -> {
+                            var bossTab by remember { mutableStateOf("handoff") }
+                            Row {
+                                Button(onClick = { bossTab = "handoff" }) { Text("待人工") }
+                                OutlinedButton(onClick = { bossTab = "menu" }) { Text("菜单管理") }
+                            }
+                            if (bossTab == "menu") MenuScreen(baseUrl = serverUrl)
+                            else HandoffScreen(baseUrl = serverUrl)
+                        }
                         AppMode.KITCHEN -> Column {
                             OrderScreen(baseUrl = serverUrl)
                             Text("离线队列待处理数：${offlineQueue.size()}")
