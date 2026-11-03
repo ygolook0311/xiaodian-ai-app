@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.OutlinedButton
@@ -69,8 +67,16 @@ fun OrderScreen(baseUrl: String) {
             Text("暂无订单")
             Text("说明：自后端订单存储部署后，还没有 AI 确认单发出；新单发出后点“立即刷新”就能看到。")
         } else {
-            LazyColumn {
-                items(orders, key = { it.id }) { order ->
+            // Plain Column, NOT LazyColumn: MainActivity already
+            // vertical-scrolls the whole page (added for the menu
+            // page, 2026-11-03). A LazyColumn inside a vertical
+            // scroll parent is measured with infinite height and
+            // crashes the app on refresh -- that is exactly the
+            // "kitchen mode exits on refresh" bug reported after
+            // build-18. Pilot queues are small, so a plain Column
+            // is fine and the outer scroll handles the scrolling.
+            Column {
+                for (order in orders) {
                     OrderCard(order, baseUrl, onDone = { refresh() })
                     Spacer(Modifier.height(8.dp))
                 }
