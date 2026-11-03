@@ -31,15 +31,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.io.File
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 // Boss-mode handoff screen (step 1 of the App plan, 2026-11-03).
-// Polls the backend every 10s (no FCM, no WebSocket server yet --
-// pilot-simple polling, server is the source of truth).
-// Voice/image/video/file are parallel pending items: text orders
-// keep going through the AI while these wait for the boss.
+// NO timed polling (2026-11-03 user report: auto-refresh kept
+// interrupting typing/replying). Refresh is manual + on entry +
+// after a reply/resolve, so a draft in a card is never reset by
+// a background refresh. Server is still the source of truth, the
+// boss just pulls it when they want it.
 @Composable
 fun HandoffScreen(baseUrl: String) {
     var items by remember { mutableStateOf<List<HandoffItem>>(emptyList()) }
@@ -51,9 +51,12 @@ fun HandoffScreen(baseUrl: String) {
         scope.launch {
             refreshing = true
             try {
-                items = withContext(Dispatchers.IO) {
+                val fresh = withContext(Dispatchers.IO) {
                     HandoffRepository(baseUrl).fetchHandoffs()
                 }
+                // Only assign when changed: assigning an identical list
+                // still recomposes the cards and can steal input focus.
+                if (fresh != items) items = fresh
                 error = ""
             } catch (e: Exception) {
                 error = "拉取待处理失败：${e.message}"
@@ -63,17 +66,15 @@ fun HandoffScreen(baseUrl: String) {
         }
     }
 
+    // Once on entry only. No while(true) polling loop.
     LaunchedEffect(baseUrl) {
         refresh()
-        while (true) {
-            delay(10_000)
-            refresh()
-        }
     }
 
     Column(Modifier.padding(16.dp)) {
         Text("待人工处理（语音 / 图片 / 视频 / 文件）")
         Text("文字点单不受影响，AI 照常回；这里只处理媒体那条。")
+        Text("不自动刷新：进页面拉一次，之后点“立即刷新”查看新消息，正在输入的回复不会被刷新打断。")
         if (error.isNotBlank()) Text(error)
         Button(onClick = { refresh() }, enabled = !refreshing) {
             Text(if (refreshing) "刷新中…" else "立即刷新")
