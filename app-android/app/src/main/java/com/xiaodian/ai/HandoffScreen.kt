@@ -2,6 +2,8 @@ package com.xiaodian.ai
 
 import android.content.Intent
 import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.media.MediaPlayer
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -102,6 +104,36 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
     var imageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
 
+    // Send an image to this customer: pick from gallery, upload via
+    // POST /kf/send-image. Use cases: payment QR code image, daily
+    // activity poster, or any other merchant image. The image counts
+    // as one 48h/5 message on the backend, like a text reply.
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            try {
+                val bytes = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.readBytes()
+                        ?: throw IllegalStateException("读取图片失败")
+                }
+                if (bytes.size > 2 * 1024 * 1024) {
+                    status = "图片超过 2MB，微信会拒收，请换张小图"
+                    return@launch
+                }
+                val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                withContext(Dispatchers.IO) {
+                    HandoffRepository(baseUrl).sendImage(
+                        item.externalUserid, bytes, "send.jpg", mime)
+                }
+                status = "图片已发送"
+            } catch (e: Exception) {
+                status = "发送图片失败：${e.message}"
+            }
+        }
+    }
+
     // Close media preview / stop voice: previously there was no way
     // to close an opened image or stop a playing voice (2026-11-03
     // user report: "App连关闭都没有").
@@ -194,6 +226,9 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
                         }
                     }
                 }) { Text("已处理") }
+                OutlinedButton(onClick = {
+                    imagePicker.launch("image/*")
+                }) { Text("发送图片") }
             }
             if (status.isNotBlank()) Text(status)
         }
