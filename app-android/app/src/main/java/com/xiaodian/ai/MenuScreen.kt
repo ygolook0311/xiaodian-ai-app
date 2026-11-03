@@ -51,6 +51,10 @@ fun MenuScreen(baseUrl: String) {
 
     Column(Modifier.padding(8.dp)) {
         Text("老板日常：菜单管理（仅老板模式，后厨改不了菜单和价格）")
+        // Status FIRST, not at the bottom: the old layout put this
+        // message below all menu items, where it was clipped off
+        // screen (no scrolling), so add failures looked silent.
+        if (status.isNotEmpty()) Text("提示：$status")
         usage?.let {
             Text("用量：订单 ${it.ordersTotal} 单，状态 ${it.ordersByStatus}，" +
                 "已完成金额 ${it.completedAmount} 元（仅已完成单，不含待付款），" +
@@ -63,15 +67,27 @@ fun MenuScreen(baseUrl: String) {
         TextField(value = newName, onValueChange = { newName = it }, label = { Text("新菜名") })
         TextField(value = newPrice, onValueChange = { newPrice = it }, label = { Text("价格（元）") })
         Button(onClick = {
+            // Validate in the App first, so a bad price or an empty
+            // name shows a reason at the top instead of failing
+            // silently (e.g. "25元" is not a number, and a duplicate
+            // name is rejected by the backend with 400).
+            if (newName.isBlank()) {
+                status = "添加失败：菜名不能为空"
+                return@Button
+            }
+            val price = newPrice.toDoubleOrNull()
+            if (price == null || price <= 0) {
+                status = "添加失败：价格只能填数字，如 25，不要带“元”字"
+                return@Button
+            }
             scope.launch {
                 try {
-                    val price = newPrice.toDouble()
                     withContext(Dispatchers.IO) {
-                        MenuRepository(baseUrl).add(newName, price, "manual")
+                        MenuRepository(baseUrl).add(newName.trim(), price, "manual")
                     }
                     newName = ""; newPrice = ""; status = "已添加"; refresh()
                 } catch (e: Exception) {
-                    status = "添加失败：${e.message}"
+                    status = "添加失败：${e.message}（重名菜品会被拒绝）"
                 }
             }
         }) { Text("手动添加") }
@@ -110,12 +126,19 @@ fun MenuScreen(baseUrl: String) {
         // Live menu
         items.forEach { item ->
             var editPrice by remember(item.id) { mutableStateOf(item.price) }
+            // Status as its own explicit value, not glued into a
+            // string-concat expression: the old
+            // "元 " + if (available) "在售" else "已停售" + "（…）"
+            // parsed as "元 " + (if … else ("已停售" + "（…）")),
+            // so the source tag only appeared on stopped dishes.
+            val statusText = if (item.available) "在售" else "已停售"
             Row {
-                Text("${item.name} ${item.price} 元 " +
-                    if (item.available) "在售" else "已停售" + "（${item.source}）")
+                Text("${item.name} ${item.price} 元")
+                Text(" $statusText（${item.source}）")
             }
             Row {
                 TextField(value = editPrice, onValueChange = { editPrice = it },
+                    modifier = Modifier.weight(1f),
                     label = { Text("改价") })
                 Button(onClick = {
                     scope.launch {
@@ -141,8 +164,19 @@ fun MenuScreen(baseUrl: String) {
                         }
                     }
                 }) { Text(if (item.available) "停售" else "恢复在售") }
+                OutlinedButton(onClick = {
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                MenuRepository(baseUrl).delete(item.id)
+                            }
+                            status = "已删除：${item.name}"; refresh()
+                        } catch (e: Exception) {
+                            status = "删除失败：${e.message}（有订单的菜只能停售，不能删除）"
+                        }
+                    }
+                }) { Text("删除") }
             }
         }
-        if (status.isNotEmpty()) Text(status)
     }
 }
