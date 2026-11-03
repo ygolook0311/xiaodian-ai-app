@@ -100,4 +100,25 @@ class HandoffRepository(
     }
 
     fun mediaUrl(mediaId: String): String = url("/kf/media/$mediaId")
+
+    /** Send an image to a customer via KF. Counts as one 48h/5 message. */
+    fun sendImage(externalUserid: String, bytes: ByteArray,
+                  filename: String, mimeType: String): String {
+        val body = okhttp3.MultipartBody.Builder()
+            .setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart("external_userid", externalUserid)
+            .addFormDataPart("file", filename,
+                bytes.toRequestBody(mimeType.toMediaType()))
+            .build()
+        val req = Request.Builder().url(url("/kf/send-image")).post(body).build()
+        client.newCall(req).execute().use { resp ->
+            val respBody = resp.body?.string() ?: ""
+            if (!resp.isSuccessful) throw IllegalStateException("发送图片失败: ${resp.code} $respBody")
+            val status = JSONObject(respBody).optString("status")
+            if (status == "blocked_by_48h_limit") {
+                throw IllegalStateException("48小时5条已用完，未发送图片；等顾客再发消息后可再发")
+            }
+            return status
+        }
+    }
 }
