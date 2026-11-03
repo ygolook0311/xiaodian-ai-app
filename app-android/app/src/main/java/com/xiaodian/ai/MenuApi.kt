@@ -62,6 +62,10 @@ class MenuRepository(private val baseUrl: String) {
         post("/kf/menu/add", json)
     }
 
+    fun delete(id: String) {
+        post("/kf/menu/delete", JSONObject().put("id", id))
+    }
+
     fun update(id: String, price: Double? = null, available: Boolean? = null) {
         val json = JSONObject().put("id", id)
         if (price != null) json.put("price", price)
