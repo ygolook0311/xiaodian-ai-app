@@ -11,8 +11,7 @@ import org.json.JSONObject
 //   GET  /kf/handoff/list   -> {"handoffs": [...], "pending_customers": [...]}
 //   POST /kf/handoff/reply  -> {"status": "replied" | "blocked_by_48h_limit", ...}
 //   POST /kf/handoff/resolve -> {"resolved": true, ...}
-//   GET  /kf/media/{id}     -> raw media bytes (TEST ONLY: no app auth yet,
-//                              production must require device/PIN auth)
+//   GET  /kf/media/{id}     -> raw media bytes (Production auth: device key + PIN, see Auth.kt)
 //
 // A handoff never blocks text orders (2026-11-03 user decision): the
 // App shows it as a parallel pending item, it does not pause the AI.
@@ -35,11 +34,12 @@ data class HandoffItem(
 class HandoffRepository(
     private val baseUrl: String,
     private val client: OkHttpClient = OkHttpClient(),
+    private val auth: AppAuth = AppAuth(),
 ) {
     private fun url(path: String): String = baseUrl.trimEnd('/') + path
 
     fun fetchHandoffs(): List<HandoffItem> {
-        val req = Request.Builder().url(url("/kf/handoff/list")).get().build()
+        val req = Request.Builder().url(url("/kf/handoff/list")).withAuth(auth).get().build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw IllegalStateException("待处理列表失败: ${resp.code}")
             val body = resp.body?.string() ?: "{}"
@@ -66,7 +66,7 @@ class HandoffRepository(
             put("text", text)
             if (!msgid.isNullOrBlank()) put("msgid", msgid)
         }.toString()
-        val req = Request.Builder().url(url("/kf/handoff/reply"))
+        val req = Request.Builder().url(url("/kf/handoff/reply")).withAuth(auth, write = true)
             .post(json.toRequestBody("application/json".toMediaType())).build()
         client.newCall(req).execute().use { resp ->
             val body = resp.body?.string() ?: ""
@@ -84,7 +84,7 @@ class HandoffRepository(
             put("external_userid", externalUserid)
             if (!msgid.isNullOrBlank()) put("msgid", msgid)
         }.toString()
-        val req = Request.Builder().url(url("/kf/handoff/resolve"))
+        val req = Request.Builder().url(url("/kf/handoff/resolve")).withAuth(auth, write = true)
             .post(json.toRequestBody("application/json".toMediaType())).build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw IllegalStateException("标记已处理失败: ${resp.code}")
@@ -92,7 +92,7 @@ class HandoffRepository(
     }
 
     fun downloadMedia(mediaId: String): ByteArray {
-        val req = Request.Builder().url(url("/kf/media/$mediaId")).get().build()
+        val req = Request.Builder().url(url("/kf/media/$mediaId")).withAuth(auth).get().build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw IllegalStateException("媒体下载失败: ${resp.code}")
             return resp.body?.bytes() ?: ByteArray(0)
@@ -110,7 +110,7 @@ class HandoffRepository(
             .addFormDataPart("file", filename,
                 bytes.toRequestBody(mimeType.toMediaType()))
             .build()
-        val req = Request.Builder().url(url("/kf/send-image")).post(body).build()
+        val req = Request.Builder().url(url("/kf/send-image")).withAuth(auth, write = true).post(body).build()
         client.newCall(req).execute().use { resp ->
             val respBody = resp.body?.string() ?: ""
             if (!resp.isSuccessful) throw IllegalStateException("发送图片失败: ${resp.code} $respBody")
