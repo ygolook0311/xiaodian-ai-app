@@ -66,6 +66,7 @@ data class KitchenOrder(
 class OrderRepository(
     private val baseUrl: String,
     private val client: OkHttpClient = OkHttpClient(),
+    private val auth: AppAuth = AppAuth(),
 ) {
     private fun url(path: String): String = baseUrl.trimEnd('/') + path
 
@@ -110,7 +111,7 @@ class OrderRepository(
             put("status", newStatus)
             put("actor", "kitchen")
         }.toString()
-        val req = Request.Builder().url(url("/kf/orders/$orderId/status"))
+        val req = Request.Builder().url(url("/kf/orders/$orderId/status")).withAuth(auth, write = true)
             .post(json.toRequestBody("application/json".toMediaType())).build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) {
