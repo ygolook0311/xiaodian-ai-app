@@ -46,6 +46,18 @@ class MainActivity : ComponentActivity() {
                         prefs.getString("server_base_url", "https://kf.golook.eu.org") ?: ""
                     )
                 }
+                // Production auth (2026-11-04): device key + operator
+                // PIN, stored like the server URL. Empty = backend
+                // auth off (pilot dev mode). When the NAS sets
+                // APP_DEVICE_KEY, these must match it, or every
+                // App call returns 401/403.
+                var deviceKey by remember {
+                    mutableStateOf(prefs.getString("device_key", "") ?: "")
+                }
+                var devicePin by remember {
+                    mutableStateOf(prefs.getString("device_pin", "") ?: "")
+                }
+                val auth = AppAuth(deviceKey, devicePin)
                 // Vertical scroll is REQUIRED, not cosmetic: without
                 // it the menu page clips at the first dish (see the
                 // 2026-11-03 screenshot: only 番茄炒蛋 visible, the
@@ -77,6 +89,22 @@ class MainActivity : ComponentActivity() {
                         },
                         label = { Text("后端地址（试点 NAS）") },
                     )
+                    TextField(
+                        value = deviceKey,
+                        onValueChange = {
+                            deviceKey = it
+                            prefs.edit().putString("device_key", it).apply()
+                        },
+                        label = { Text("设备密钥（与 NAS 的 APP_DEVICE_KEY 一致）") },
+                    )
+                    TextField(
+                        value = devicePin,
+                        onValueChange = {
+                            devicePin = it
+                            prefs.edit().putString("device_pin", it).apply()
+                        },
+                        label = { Text("操作 PIN（写操作用，后端设了 PIN 才需要）") },
+                    )
                     when (currentMode) {
                         AppMode.BOSS -> {
                             var bossTab by remember { mutableStateOf("handoff") }
@@ -84,11 +112,11 @@ class MainActivity : ComponentActivity() {
                                 Button(onClick = { bossTab = "handoff" }) { Text("待人工") }
                                 OutlinedButton(onClick = { bossTab = "menu" }) { Text("菜单管理") }
                             }
-                            if (bossTab == "menu") MenuScreen(baseUrl = serverUrl)
-                            else HandoffScreen(baseUrl = serverUrl)
+                            if (bossTab == "menu") MenuScreen(baseUrl = serverUrl, auth = auth)
+                            else HandoffScreen(baseUrl = serverUrl, auth = auth)
                         }
                         AppMode.KITCHEN -> Column {
-                            OrderScreen(baseUrl = serverUrl)
+                            OrderScreen(baseUrl = serverUrl, auth = auth)
                             Text("离线队列待处理数：${offlineQueue.size()}")
                         }
                     }
