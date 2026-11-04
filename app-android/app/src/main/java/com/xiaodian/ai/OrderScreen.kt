@@ -29,7 +29,7 @@ import kotlinx.coroutines.withContext
 // Kitchen mode: status buttons only. No price change, no refund,
 // no menu edit here (ModePolicy: those are boss-only, step 3).
 @Composable
-fun OrderScreen(baseUrl: String) {
+fun OrderScreen(baseUrl: String, auth: AppAuth = AppAuth()) {
     var orders by remember { mutableStateOf<List<KitchenOrder>>(emptyList()) }
     var error by remember { mutableStateOf("") }
     var refreshing by remember { mutableStateOf(false) }
@@ -40,7 +40,7 @@ fun OrderScreen(baseUrl: String) {
             refreshing = true
             try {
                 val fresh = withContext(Dispatchers.IO) {
-                    OrderRepository(baseUrl).fetchOrders()
+                    OrderRepository(baseUrl, auth = auth).fetchOrders()
                 }
                 if (fresh != orders) orders = fresh
                 error = ""
@@ -115,7 +115,7 @@ private fun OrderCard(order: KitchenOrder, baseUrl: String, onDone: () -> Unit) 
                         scope.launch {
                             try {
                                 withContext(Dispatchers.IO) {
-                                    OrderRepository(baseUrl).updateStatus(order.id, next)
+                                    OrderRepository(baseUrl, auth = auth).updateStatus(order.id, next)
                                 }
                                 status = "已推进"
                                 onDone()
