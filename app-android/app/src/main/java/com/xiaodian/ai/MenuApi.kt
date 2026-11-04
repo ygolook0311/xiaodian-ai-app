@@ -20,7 +20,7 @@ data class Usage(
     val completedAmount: Double, val menuTotal: Int, val menuAvailable: Int,
 )
 
-class MenuRepository(private val baseUrl: String) {
+class MenuRepository(private val baseUrl: String, private val auth: AppAuth = AppAuth()) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -29,7 +29,7 @@ class MenuRepository(private val baseUrl: String) {
     private fun url(path: String) = baseUrl.trimEnd('/') + path
 
     private fun post(path: String, json: JSONObject): JSONObject {
-        val req = Request.Builder().url(url(path))
+        val req = Request.Builder().url(url(path)).withAuth(auth, write = true)
             .post(json.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(req).execute().use { resp ->
@@ -40,7 +40,7 @@ class MenuRepository(private val baseUrl: String) {
     }
 
     private fun get(path: String): JSONObject {
-        val req = Request.Builder().url(url(path)).build()
+        val req = Request.Builder().url(url(path)).withAuth(auth).build()
         client.newCall(req).execute().use { resp ->
             val body = resp.body?.string() ?: ""
             if (!resp.isSuccessful) throw IllegalStateException("$path 失败: ${resp.code} $body")
