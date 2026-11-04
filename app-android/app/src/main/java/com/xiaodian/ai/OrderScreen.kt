@@ -77,7 +77,7 @@ fun OrderScreen(baseUrl: String, auth: AppAuth = AppAuth()) {
             // is fine and the outer scroll handles the scrolling.
             Column {
                 for (order in orders) {
-                    OrderCard(order, baseUrl, onDone = { refresh() })
+                    OrderCard(order, baseUrl, auth, onDone = { refresh() })
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -86,7 +86,7 @@ fun OrderScreen(baseUrl: String, auth: AppAuth = AppAuth()) {
 }
 
 @Composable
-private fun OrderCard(order: KitchenOrder, baseUrl: String, onDone: () -> Unit) {
+private fun OrderCard(order: KitchenOrder, baseUrl: String, auth: AppAuth = AppAuth(), onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("") }
 
