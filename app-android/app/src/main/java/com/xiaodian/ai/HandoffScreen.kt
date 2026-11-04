@@ -89,7 +89,7 @@ fun HandoffScreen(baseUrl: String, auth: AppAuth = AppAuth()) {
             // item appears and the list recomposes on refresh.
             Column {
                 for (item in items) {
-                    HandoffCard(item, baseUrl, onDone = { refresh() })
+                    HandoffCard(item, baseUrl, auth, onDone = { refresh() })
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -98,7 +98,7 @@ fun HandoffScreen(baseUrl: String, auth: AppAuth = AppAuth()) {
 }
 
 @Composable
-private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) {
+private fun HandoffCard(item: HandoffItem, baseUrl: String, auth: AppAuth = AppAuth(), onDone: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var replyText by remember { mutableStateOf("") }
