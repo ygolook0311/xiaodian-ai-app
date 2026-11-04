@@ -71,7 +71,7 @@ class OrderRepository(
     private fun url(path: String): String = baseUrl.trimEnd('/') + path
 
     fun fetchOrders(): List<KitchenOrder> {
-        val req = Request.Builder().url(url("/kf/orders/list")).get().build()
+        val req = Request.Builder().url(url("/kf/orders/list")).withAuth(auth).get().build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw IllegalStateException("订单列表失败: ${resp.code}")
             val body = resp.body?.string() ?: "{}"
