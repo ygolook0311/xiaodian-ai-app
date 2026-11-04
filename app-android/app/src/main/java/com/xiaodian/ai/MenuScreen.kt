@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MenuScreen(baseUrl: String) {
+fun MenuScreen(baseUrl: String, auth: AppAuth = AppAuth()) {
     var items by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
     var drafts by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
     var usage by remember { mutableStateOf<Usage?>(null) }
@@ -38,8 +38,8 @@ fun MenuScreen(baseUrl: String) {
     fun refresh() {
         scope.launch {
             try {
-                val menu = withContext(Dispatchers.IO) { MenuRepository(baseUrl).fetchMenu() }
-                val u = withContext(Dispatchers.IO) { MenuRepository(baseUrl).fetchUsage() }
+                val menu = withContext(Dispatchers.IO) { MenuRepository(baseUrl, auth = auth).fetchMenu() }
+                val u = withContext(Dispatchers.IO) { MenuRepository(baseUrl, auth = auth).fetchUsage() }
                 items = menu; usage = u
             } catch (e: Exception) {
                 status = "加载失败：${e.message}"
@@ -83,7 +83,7 @@ fun MenuScreen(baseUrl: String) {
             scope.launch {
                 try {
                     withContext(Dispatchers.IO) {
-                        MenuRepository(baseUrl).add(newName.trim(), price, "manual")
+                        MenuRepository(baseUrl, auth = auth).add(newName.trim(), price, "manual")
                     }
                     newName = ""; newPrice = ""; status = "已添加"; refresh()
                 } catch (e: Exception) {
@@ -98,7 +98,7 @@ fun MenuScreen(baseUrl: String) {
             scope.launch {
                 try {
                     val d = withContext(Dispatchers.IO) {
-                        MenuRepository(baseUrl).generate(aiDesc)
+                        MenuRepository(baseUrl, auth = auth).generate(aiDesc)
                     }
                     drafts = d; status = "AI 草稿 ${d.size} 道，点加入菜单才生效"
                 } catch (e: Exception) {
@@ -113,7 +113,7 @@ fun MenuScreen(baseUrl: String) {
                     scope.launch {
                         try {
                             withContext(Dispatchers.IO) {
-                                MenuRepository(baseUrl).add(draft.name, draft.price.toDouble(), "ai")
+                                MenuRepository(baseUrl, auth = auth).add(draft.name, draft.price.toDouble(), "ai")
                             }
                             drafts = drafts - draft; status = "已加入：${draft.name}"; refresh()
                         } catch (e: Exception) {
@@ -144,7 +144,7 @@ fun MenuScreen(baseUrl: String) {
                     scope.launch {
                         try {
                             withContext(Dispatchers.IO) {
-                                MenuRepository(baseUrl).update(item.id, price = editPrice.toDouble())
+                                MenuRepository(baseUrl, auth = auth).update(item.id, price = editPrice.toDouble())
                             }
                             status = "已改价：${item.name}"; refresh()
                         } catch (e: Exception) {
@@ -156,7 +156,7 @@ fun MenuScreen(baseUrl: String) {
                     scope.launch {
                         try {
                             withContext(Dispatchers.IO) {
-                                MenuRepository(baseUrl).update(item.id, available = !item.available)
+                                MenuRepository(baseUrl, auth = auth).update(item.id, available = !item.available)
                             }
                             refresh()
                         } catch (e: Exception) {
@@ -168,7 +168,7 @@ fun MenuScreen(baseUrl: String) {
                     scope.launch {
                         try {
                             withContext(Dispatchers.IO) {
-                                MenuRepository(baseUrl).delete(item.id)
+                                MenuRepository(baseUrl, auth = auth).delete(item.id)
                             }
                             status = "已删除：${item.name}"; refresh()
                         } catch (e: Exception) {
