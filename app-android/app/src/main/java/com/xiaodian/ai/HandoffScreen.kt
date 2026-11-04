@@ -41,7 +41,7 @@ import kotlinx.coroutines.withContext
 // a background refresh. Server is still the source of truth, the
 // boss just pulls it when they want it.
 @Composable
-fun HandoffScreen(baseUrl: String) {
+fun HandoffScreen(baseUrl: String, auth: AppAuth = AppAuth()) {
     var items by remember { mutableStateOf<List<HandoffItem>>(emptyList()) }
     var error by remember { mutableStateOf("") }
     var refreshing by remember { mutableStateOf(false) }
@@ -52,7 +52,7 @@ fun HandoffScreen(baseUrl: String) {
             refreshing = true
             try {
                 val fresh = withContext(Dispatchers.IO) {
-                    HandoffRepository(baseUrl).fetchHandoffs()
+                    HandoffRepository(baseUrl, auth = auth).fetchHandoffs()
                 }
                 // Only assign when changed: assigning an identical list
                 // still recomposes the cards and can steal input focus.
@@ -126,7 +126,7 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
                 }
                 val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
                 withContext(Dispatchers.IO) {
-                    HandoffRepository(baseUrl).sendImage(
+                    HandoffRepository(baseUrl, auth = auth).sendImage(
                         item.externalUserid, bytes, "send.jpg", mime)
                 }
                 status = "图片已发送"
@@ -158,13 +158,13 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
                             when (item.msgtype) {
                                 "image" -> {
                                     val bytes = withContext(Dispatchers.IO) {
-                                        HandoffRepository(baseUrl).downloadMedia(item.mediaId)
+                                        HandoffRepository(baseUrl, auth = auth).downloadMedia(item.mediaId)
                                     }
                                     imageBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                                 }
                                 "voice" -> {
                                     val bytes = withContext(Dispatchers.IO) {
-                                        HandoffRepository(baseUrl).downloadMedia(item.mediaId)
+                                        HandoffRepository(baseUrl, auth = auth).downloadMedia(item.mediaId)
                                     }
                                     val tmp = File(context.cacheDir, "handoff_${item.msgid}.amr")
                                     tmp.writeBytes(bytes)
@@ -178,7 +178,7 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
                                 else -> {
                                     // Video / file: hand to the system player/viewer.
                                     val intent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse(HandoffRepository(baseUrl).mediaUrl(item.mediaId))
+                                        data = Uri.parse(HandoffRepository(baseUrl, auth = auth).mediaUrl(item.mediaId))
                                     }
                                     context.startActivity(intent)
                                 }
@@ -206,7 +206,7 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
                     scope.launch {
                         try {
                             withContext(Dispatchers.IO) {
-                                HandoffRepository(baseUrl).reply(item.externalUserid, replyText, item.msgid)
+                                HandoffRepository(baseUrl, auth = auth).reply(item.externalUserid, replyText, item.msgid)
                             }
                             status = "已发送"
                             replyText = ""
@@ -220,7 +220,7 @@ private fun HandoffCard(item: HandoffItem, baseUrl: String, onDone: () -> Unit) 
                     scope.launch {
                         try {
                             withContext(Dispatchers.IO) {
-                                HandoffRepository(baseUrl).resolve(item.externalUserid, item.msgid)
+                                HandoffRepository(baseUrl, auth = auth).resolve(item.externalUserid, item.msgid)
                             }
                             onDone()
                         } catch (e: Exception) {
